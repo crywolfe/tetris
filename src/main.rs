@@ -1,8 +1,9 @@
 extern crate sdl2;
+extern crate rand;
 
 use sdl2::pixels::Color;
 use sdl2::event::Event;
-use sdl2::image::{LoadTexture, INI&&T_PNG, INIT_JPG};
+use sdl2::image::{LoadTexture, INIT_PNG, INIT_JPG};
 use sdl2::keyboard::Keycode;
 use sdl2::rect::Rect;
 use sdl2::render::Canvas;
@@ -39,6 +40,12 @@ trait TetriminoGenerator {
 }
 
 struct TetriminoI;
+struct TetriminoJ;
+struct TetriminoL;
+struct TetriminoO;
+struct TetriminoS;
+struct TetriminoT;
+struct TetriminoZ;
 
 impl TetriminoGenerator for TetriminoI {    
     fn new() -> Tetrimino {
@@ -211,6 +218,25 @@ fn load_highscores_and_lines() -> Option<(Vec<u32>, Vec<u32>)> {
         }
     } else {
         None
+    }
+}
+
+fn create_new_tetrimino() -> Tetrimino {
+    static mut PREV: u8 = 7;
+    let mut rand_nb = rand::random::<u8>() % 7;
+    if unsafe { PREV } == rand_nb {
+        rand_nb = rand::random::<u8>() % 7;
+    }
+    unsafe { PREV = rand_nb; }
+    match rand_nb {
+        0 => TetriminoI::new(),
+        1 => TetriminoJ::new(),
+        2 => TetriminoL::new(),
+        3 => TetriminoO::new(),
+        4 => TetriminoS::new(),
+        5 => TetriminoZ::new(),
+        6 => TetriminoT::new(),
+        _ => unreachable!(),
     }
 }
 pub fn main() {
