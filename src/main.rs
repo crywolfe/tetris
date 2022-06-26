@@ -181,14 +181,19 @@ impl TetriminoGenerator for TetriminoT {
 }
 
 impl Tetrimino {
-    fn rotate(&mut self) {
+    fn rotate(&mut self, game_map: &[Vec<u8>]) {
+        let mut tmp_state = self.current_state + 1;
+        if tmp_state as usize >= self.states.len() {
+            tmp_state = 0;
+        }
+        
         self.current_state += 1;
         if self.current_state as usize >= self.states.len() {
             self.current_state = 0;
         }
     }
 
-    fn test_position(&self, game_map: &[Vec<u8>], tmp_state: usize, x: isize, y: usize) -> {
+    fn test_position(&self, game_map: &[Vec<u8>], tmp_state: usize, x: isize, y: usize) -> bool {
         for decal_y in 0..4 {
             for decal_x in 0..4 {
                 let x = x + decal_x;
