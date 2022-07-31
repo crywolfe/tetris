@@ -34,6 +34,14 @@ struct Tetrimino {
     current_state: u8,
 }
 
+struct Tetris {
+    game_map: Vec<Vec<u8>>,
+    current_level: u32,
+    score: u32,
+    nb_lines: u32,
+    current_piece: Option<Tetrimino>
+}
+
 trait TetriminoGenerator {
     fn new() -> Tetrimino;
     
@@ -209,6 +217,7 @@ impl Tetrimino {
         }
         return true;
     }
+
 }
 
 fn read_from_file(file_name: &str) -> io::Result<String> {
@@ -271,6 +280,40 @@ fn create_new_tetrimino() -> Tetrimino {
         _ => unreachable!(),
     }
 }
+
+fn change_position(&mut self, game_map: &[Vec<u8>], new_x: isize, new_y: usize) -> bool {
+
+    if self.test_position(game_map, self.current_state as usize, new_x, new_y) == true {
+        self.x = new_x as isize;
+        self.y = new_y;
+        true
+    } else {
+        false
+    }
+}
+
+fn test_current_position(&self, game_map: &[Vec<u8>]) -> bool {
+    self.test_position(game_map, self.current_state as usize, self.x, self.y)
+}
+
+impl Tetris {
+    fn new() -> Tetris {
+        let mut game_map = Vec::new();
+        // creates game map 16 X 10
+        for _ in 0..16 {
+            game_map.push(vec![0,0,0,0,0,0,0,0,0,0]);
+        }
+        Tetris {
+            game_map: game_map,
+            current_level: 1,
+            score: 0,
+            nb_lines: 0,
+            current_piece: None
+
+        }
+    }
+}
+
 pub fn main() {
     let sdl_context = sdl2::init().expect("SDL initialization failed");
     let video_subsystem = sdl_context.video().expect("Couldn't get SLD video subsystem");
