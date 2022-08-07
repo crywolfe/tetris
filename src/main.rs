@@ -368,6 +368,9 @@ pub fn main() {
 
     sdl2::image::init(INIT_PNG | INIT_JPG).expect("Couldn't initialize image context");
 
+    let mut tetris = Tetris::new();
+    let mut timer = SystemTime::now();
+
     // Parameters are title, width, height
     let window = video_subsystem.window("Tetris", 800, 600)
     .position_centered()
@@ -422,6 +425,60 @@ pub fn main() {
         sleep(Duration::new(0, 1_000_000u32 /60));
     }
 }
+
+// TODO invoke in the main fn
+fn handle_events(tetris: &mut Tetris, quit: &mut bool, timer: &mut SystemTime, event_pump: &mut sdl2::EventPump) -> bool {
+    let mut make_permanent = false;
+    if let Some(ref mut piece) = tetris.current_piece {
+        let mut tmp_x = piece.x;
+        let mut tmp_y = piece.y;
+
+        for event in event_pump.poll_iter() {
+            match event {
+                Event::Quit { .. } |
+                Event::KeyDown { keycode: Some(Keycode::Escape), .. } => {
+                    *quit = true;
+                    break
+                }
+                Event::KeyDown { keycode: Some(Keycode::Down), .. } => {
+                    *timer = SystemTime::now();
+                    tmp_y += 1;
+                }
+                Event::KeyDown { keycode: Some(Keycode::Right), .. } => {
+                    tmp_x += 1;
+                }
+                Event::KeyDown { keycode: Some(Keycode::Left), .. } => {
+                    *timer = SystemTime::now();
+                    tmp_x -= 1;
+                }
+                Event::KeyDown { keycode: Some(Keycode::Up), .. } => {
+                    piece.rotate(&tetris.game_map);
+                }
+                Event::KeyDown { keycode: Some(Keycode::Space), .. } => {
+                    let x = piece.x;
+                    let mut y = piece.y;
+                    while piece.change_position(&tetris.game_map, x, y + 1) == true {
+                        y += 1;
+                    }
+                    make_permanent = true;
+                }
+                _ => {}
+            }
+        }
+        if !make_permanent {
+            if piece.change_position(&tetris.game_map, tmp_x, tmp_y) == false && tmp_y != piece.y {
+                make_permanent = true;
+            }
+        }
+    }
+    if make_permanent {
+        tetris.make_permanent();
+        *timer = SystemTime::now();
+    }
+    make_permanent
+}
+
+
 
 fn create_texture_rect<'a>(
     canvas: &mut Canvas<Window>, 
