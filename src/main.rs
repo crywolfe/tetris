@@ -339,6 +339,29 @@ fn check_lines(&mut self) {
     }
 }
 
+fn make_permanent(&mut self) {
+    if let Some(ref mut piece) = self.current_piece {
+        let mut shift_y = 0;
+
+        while shift_y < piece.states[piece.current_state as usize].len() && piece.y + shift_y < self.game_map.len() {
+            let mut shift_x = 0;
+
+            while shift_x < piece.states[piece.current_state as usize][shift_y].len() && 
+                (piece.x + shift_x as isize) < self.game_map[piece.y + shift_y].len() as isize {
+                    if piece.states[piece.current_state as usize][shift_y][shift_x] != 0 {
+                        let x = piece.x + shift_x as isize;
+                        self.game_map[piece.y + shift_y][x as usize] = piece.states[piece.current_state as usize][shift_y][shift_x];
+                    }
+                    shift_x += 1; 
+            
+            }
+            shift_y += 1;
+        }
+    }
+    self.check_lines();
+    self.current_piece = None;
+}
+
 pub fn main() {
     let sdl_context = sdl2::init().expect("SDL initialization failed");
     let video_subsystem = sdl_context.video().expect("Couldn't get SLD video subsystem");
