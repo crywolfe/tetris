@@ -218,6 +218,21 @@ impl Tetrimino {
         return true;
     }
 
+    fn change_position(&mut self, game_map: &[Vec<u8>], new_x: isize, new_y: usize) -> bool {
+
+        if self.test_position(game_map, self.current_state as usize, new_x, new_y) == true {
+            self.x = new_x as isize;
+            self.y = new_y;
+            true
+        } else {
+            false
+        }
+    }
+    
+    fn test_current_position(&self, game_map: &[Vec<u8>]) -> bool {
+        self.test_position(game_map, self.current_state as usize, self.x, self.y)
+    }
+    
 }
 
 fn read_from_file(file_name: &str) -> io::Result<String> {
@@ -262,40 +277,6 @@ fn load_highscores_and_lines() -> Option<(Vec<u32>, Vec<u32>)> {
     }
 }
 
-fn create_new_tetrimino() -> Tetrimino {
-    static mut PREV: u8 = 7;
-    let mut rand_nb = rand::random::<u8>() % 7;
-    if unsafe { PREV } == rand_nb {
-        rand_nb = rand::random::<u8>() % 7;
-    }
-    unsafe { PREV = rand_nb; }
-    match rand_nb {
-        0 => TetriminoI::new(),
-        1 => TetriminoJ::new(),
-        2 => TetriminoL::new(),
-        3 => TetriminoO::new(),
-        4 => TetriminoS::new(),
-        5 => TetriminoZ::new(),
-        6 => TetriminoT::new(),
-        _ => unreachable!(),
-    }
-}
-
-fn change_position(&mut self, game_map: &[Vec<u8>], new_x: isize, new_y: usize) -> bool {
-
-    if self.test_position(game_map, self.current_state as usize, new_x, new_y) == true {
-        self.x = new_x as isize;
-        self.y = new_y;
-        true
-    } else {
-        false
-    }
-}
-
-fn test_current_position(&self, game_map: &[Vec<u8>]) -> bool {
-    self.test_position(game_map, self.current_state as usize, self.x, self.y)
-}
-
 impl Tetris {
     fn new() -> Tetris {
         let mut game_map = Vec::new();
@@ -312,54 +293,130 @@ impl Tetris {
 
         }
     }
-}
 
-fn check_lines(&mut self) {
-    let mut y = 0;
+    fn create_new_tetrimino(&self) -> Tetrimino {
+        static mut PREV: u8 = 7;
+        let mut rand_nb = rand::random::<u8>() % 7;
+        if unsafe { PREV } == rand_nb {
+            rand_nb = rand::random::<u8>() % 7;
+        }
+        unsafe { PREV = rand_nb; }
+        match rand_nb {
+            0 => TetriminoI::new(),
+            1 => TetriminoJ::new(),
+            2 => TetriminoL::new(),
+            3 => TetriminoO::new(),
+            4 => TetriminoS::new(),
+            5 => TetriminoZ::new(),
+            6 => TetriminoT::new(),
+            _ => unreachable!(),
+        }
+    }
 
-    while y < self.game_map.len() {
-        let mut complete = true;
+    fn update_score(&mut self, to_add: u32) {
+        self.score += to_add;
+    }
 
-        for x in &self.game_map[y] {
-            if *x == 0 {
-                complete = false;
-                break;
+    fn check_lines(&mut self) {
+        let mut y = 0;
+    
+        while y < self.game_map.len() {
+            let mut complete = true;
+    
+            for x in &self.game_map[y] {
+                if *x == 0 {
+                    complete = false;
+                    break;
+                }
+            }
+            if complete == true {
+                self.game_map.remove(y);
+                y -= 1;
+                
+            }
+            y += 1;
+    
+        }
+        while self.game_map.len() < 16 {
+            self.game_map.insert(0, vec![0,0,0,0,0,0,0,0,0,0]);
+        }
+    }
+
+    fn make_permanent(&mut self) {
+        if let Some(ref mut piece) = self.current_piece {
+            let mut shift_y = 0;
+    
+            while shift_y < piece.states[piece.current_state as usize].len() && piece.y + shift_y < self.game_map.len() {
+                let mut shift_x = 0;
+    
+                while shift_x < piece.states[piece.current_state as usize][shift_y].len() && 
+                    (piece.x + shift_x as isize) < self.game_map[piece.y + shift_y].len() as isize {
+                        if piece.states[piece.current_state as usize][shift_y][shift_x] != 0 {
+                            let x = piece.x + shift_x as isize;
+                            self.game_map[piece.y + shift_y][x as usize] = piece.states[piece.current_state as usize][shift_y][shift_x];
+                        }
+                        shift_x += 1; 
+                
+                }
+                shift_y += 1;
             }
         }
-        if complete == true {
-            self.game_map.remove(y);
-            y -= 1;
-            
-        }
-        y += 1;
-
+        self.check_lines();
+        self.current_piece = None;
     }
-    while self.game_map.len() < 16 {
-        self.game_map.insert(0, vec![0,0,0,0,0,0,0,0,0,0]);
-    }
+    
+    
 }
 
-fn make_permanent(&mut self) {
-    if let Some(ref mut piece) = self.current_piece {
-        let mut shift_y = 0;
+fn handle_events(tetris: &mut Tetris, quit: &mut bool, timer: &mut SystemTime, event_pump: &mut sdl2::EventPump) -> bool {
+    let mut make_permanent = false;
+    if let Some(ref mut piece) = tetris.current_piece {
+        let mut tmp_x = piece.x;
+        let mut tmp_y = piece.y;
 
-        while shift_y < piece.states[piece.current_state as usize].len() && piece.y + shift_y < self.game_map.len() {
-            let mut shift_x = 0;
-
-            while shift_x < piece.states[piece.current_state as usize][shift_y].len() && 
-                (piece.x + shift_x as isize) < self.game_map[piece.y + shift_y].len() as isize {
-                    if piece.states[piece.current_state as usize][shift_y][shift_x] != 0 {
-                        let x = piece.x + shift_x as isize;
-                        self.game_map[piece.y + shift_y][x as usize] = piece.states[piece.current_state as usize][shift_y][shift_x];
+        for event in event_pump.poll_iter() {
+            match event {
+                Event::Quit { .. } |
+                Event::KeyDown { keycode: Some(Keycode::Escape), .. } => {
+                    *quit = true;
+                    break
+                }
+                Event::KeyDown { keycode: Some(Keycode::Down), .. } => {
+                    *timer = SystemTime::now();
+                    tmp_y += 1;
+                }
+                Event::KeyDown { keycode: Some(Keycode::Right), .. } => {
+                    tmp_x += 1;
+                }
+                Event::KeyDown { keycode: Some(Keycode::Left), .. } => {
+                    *timer = SystemTime::now();
+                    tmp_x -= 1;
+                }
+                Event::KeyDown { keycode: Some(Keycode::Up), .. } => {
+                    piece.rotate(&tetris.game_map);
+                }
+                Event::KeyDown { keycode: Some(Keycode::Space), .. } => {
+                    let x = piece.x;
+                    let mut y = piece.y;
+                    while piece.change_position(&tetris.game_map, x, y + 1) == true {
+                        y += 1;
                     }
-                    shift_x += 1; 
-            
+                    make_permanent = true;
+                }
+                _ => {}
             }
-            shift_y += 1;
+        }
+        if !make_permanent {
+            if piece.change_position(&tetris.game_map, tmp_x, tmp_y) == false && tmp_y != piece.y {
+                make_permanent = true;
+            }
         }
     }
-    self.check_lines();
-    self.current_piece = None;
+    if make_permanent {
+        tetris.make_permanent();
+        *timer = SystemTime::now();
+    }
+    make_permanent
 }
 
 pub fn main() {
@@ -469,57 +526,6 @@ pub fn main() {
     // }
 }
 
-// TODO invoke in the main fn
-fn handle_events(tetris: &mut Tetris, quit: &mut bool, timer: &mut SystemTime, event_pump: &mut sdl2::EventPump) -> bool {
-    let mut make_permanent = false;
-    if let Some(ref mut piece) = tetris.current_piece {
-        let mut tmp_x = piece.x;
-        let mut tmp_y = piece.y;
-
-        for event in event_pump.poll_iter() {
-            match event {
-                Event::Quit { .. } |
-                Event::KeyDown { keycode: Some(Keycode::Escape), .. } => {
-                    *quit = true;
-                    break
-                }
-                Event::KeyDown { keycode: Some(Keycode::Down), .. } => {
-                    *timer = SystemTime::now();
-                    tmp_y += 1;
-                }
-                Event::KeyDown { keycode: Some(Keycode::Right), .. } => {
-                    tmp_x += 1;
-                }
-                Event::KeyDown { keycode: Some(Keycode::Left), .. } => {
-                    *timer = SystemTime::now();
-                    tmp_x -= 1;
-                }
-                Event::KeyDown { keycode: Some(Keycode::Up), .. } => {
-                    piece.rotate(&tetris.game_map);
-                }
-                Event::KeyDown { keycode: Some(Keycode::Space), .. } => {
-                    let x = piece.x;
-                    let mut y = piece.y;
-                    while piece.change_position(&tetris.game_map, x, y + 1) == true {
-                        y += 1;
-                    }
-                    make_permanent = true;
-                }
-                _ => {}
-            }
-        }
-        if !make_permanent {
-            if piece.change_position(&tetris.game_map, tmp_x, tmp_y) == false && tmp_y != piece.y {
-                make_permanent = true;
-            }
-        }
-    }
-    if make_permanent {
-        tetris.make_permanent();
-        *timer = SystemTime::now();
-    }
-    make_permanent
-}
 
 fn print_game_information(tetris: &Tetris) {
     println!("Game over...");
