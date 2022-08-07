@@ -17,6 +17,8 @@ use std::thread::sleep;
 use std::time::SystemTime;
 
 const TEXTURE_SIZE: u32 = 32;
+const LEVEL_TIMES: [u32; 10] = [1000, 850, 700, 600, 500, 400, 300, 250, 221, 190];
+const LEVEL_LINES: [u32; 10] = [20,   40,  60,  80,  100, 120, 140, 160, 180, 200];
 
 #[derive(Clone, Copy)]
 enum TextureColor {
@@ -319,52 +321,72 @@ impl Tetris {
 
     fn check_lines(&mut self) {
         let mut y = 0;
-    
+        let mut score_add = 0;
+
         while y < self.game_map.len() {
             let mut complete = true;
-    
+
             for x in &self.game_map[y] {
                 if *x == 0 {
                     complete = false;
-                    break;
+                    break
                 }
             }
             if complete == true {
+                score_add += self.current_level;
                 self.game_map.remove(y);
                 y -= 1;
-                
             }
             y += 1;
-    
         }
+        if self.game_map.len() == 0 {
+            // A "tetris"!
+            score_add += 1000;
+        }
+        self.update_score(score_add);
         while self.game_map.len() < 16 {
-            self.game_map.insert(0, vec![0,0,0,0,0,0,0,0,0,0]);
+            self.increase_line();
+            self.game_map.insert(0, vec![0, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
         }
     }
 
     fn make_permanent(&mut self) {
+        let mut to_add = 0;
         if let Some(ref mut piece) = self.current_piece {
             let mut shift_y = 0;
-    
-            while shift_y < piece.states[piece.current_state as usize].len() && piece.y + shift_y < self.game_map.len() {
+
+            while shift_y < piece.states[piece.current_state as usize].len() &&
+                  piece.y + shift_y < self.game_map.len() {
                 let mut shift_x = 0;
-    
-                while shift_x < piece.states[piece.current_state as usize][shift_y].len() && 
-                    (piece.x + shift_x as isize) < self.game_map[piece.y + shift_y].len() as isize {
-                        if piece.states[piece.current_state as usize][shift_y][shift_x] != 0 {
-                            let x = piece.x + shift_x as isize;
-                            self.game_map[piece.y + shift_y][x as usize] = piece.states[piece.current_state as usize][shift_y][shift_x];
-                        }
-                        shift_x += 1; 
-                
+
+                while shift_x < piece.states[piece.current_state as usize][shift_y].len() &&
+                      (piece.x + shift_x as isize) < self.game_map[piece.y + shift_y].len() as isize {
+                    if piece.states[piece.current_state as usize][shift_y][shift_x] != 0 {
+                        let x = piece.x + shift_x as isize;
+                        self.game_map[piece.y + shift_y][x as usize] =
+                            piece.states[piece.current_state as usize][shift_y][shift_x];
+                    }
+                    shift_x += 1;
                 }
                 shift_y += 1;
             }
+            to_add += self.current_level;
         }
+        self.update_score(to_add);
         self.check_lines();
         self.current_piece = None;
     }
     
+    fn increase_level(&mut self) {
+        self.current_level += 1;
+    }
+    
+    fn increase_line(&mut self) {
+        self.nb_lines += 1;
+        if self.nb_lines > LEVEL_LINES[self.current_level as usize - 1] {
+            self.increase_level();
+        }
+    }
     
 }
 
@@ -419,6 +441,16 @@ fn handle_events(tetris: &mut Tetris, quit: &mut bool, timer: &mut SystemTime, e
     make_permanent
 }
 
+fn is_time_over(tetris: &Tetris, timer: &SystemTime) -> bool {
+    match timer.elapsed() {
+        Ok(elapsed) => {
+            let millis = elapsed.as_secs() as u32 * 1000 + elapsed.subsec_nanos() / 1_000_000;
+            millis > LEVEL_TIMES[tetris.current_level as usize - 1]
+        }
+        Err(_) => false,
+    }
+}
+
 pub fn main() {
     let sdl_context = sdl2::init().expect("SDL initialization failed");
     let video_subsystem = sdl_context.video().expect("Couldn't get SLD video subsystem");
@@ -451,6 +483,20 @@ pub fn main() {
     let mut event_pump = sdl_context.event_pump().expect("Failed to get SDL event pump");
 
     loop {
+
+        if is_time_over(&tetris, &timer) {
+            let mut make_permanent = false;
+            if let Some(ref mut piece) = tetris.current_piece {
+                let x = piece.x;
+                let y = piece.y + 1;
+                make_permanent = !piece.change_position(&tetris.game_map, x, y);
+            }
+            if make_permanent {
+                tetris.make_permanent();
+            }
+            timer = SystemTime::now();
+        }
+
         if match timer.elapsed() {
             Ok(elapsed) => elapsed.as_secs() >= 1,
             Err(_) => false,
