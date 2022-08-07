@@ -393,37 +393,80 @@ pub fn main() {
     // get the event handler
     let mut event_pump = sdl_context.event_pump().expect("Failed to get SDL event pump");
 
-    'running: loop {
-        for event in event_pump.poll_iter() {
-            match event {
-                Event::Quit {..} |
-                Event::KeyDown { keycode: Some(Keycode::Escape), .. } => {
-                    break 'running
-                },
-                _ => {}
+    loop {
+        if match timer.elapsed() {
+            Ok(elapsed) => elapsed.as_secs() >= 1,
+            Err(_) => false,
+        } {
+            let mut make_permanent = false;
+            if let Some(ref mut piece) = tetris.current_piece {
+                let x = piece.x;
+                let y = piece.y + 1;
+                make_permanent = !piece.change_position(&tetris.game_map, x, y);
+            }
+            if make_permanent {
+                tetris.make_permanent();
+            }
+            timer = SystemTime::now();
+        }
+
+        if tetris.current_piece.is_none() {
+            let current_piece = tetris.create_new_tetrimino();
+            if !current_piece.test_current_position(&tetris.game_map) {
+                print_game_information(&tetris);
+                break
+            }
+            tetris.current_piece = Some(current_piece);
+        }
+
+        let mut quit = false;
+        if !handle_events(&mut tetris, &mut quit, &mut timer, &mut event_pump) {
+            if let Some(ref mut piece) = tetris.current_piece {
+                // TODO draw current tetrimino here
+
             }
         }
-        canvas.set_draw_color(Color::RGB(0,0,0));
-        canvas.clear();
+        if quit {
+            print_game_information(&tetris);
+            break
+        }
 
-        // rectangle switch
-        let display_green = match timer.elapsed() {
-            Ok(elapsed) => elapsed.as_secs() % 2 == 0,
-            Err(_) => {
-                true
-            }
-        };
-        let square_texture = if display_green {
-            &green_square
-        } else {
-            &blue_square
-        };
-        canvas.copy(square_texture, None, Rect::new(0,0, TEXTURE_SIZE, TEXTURE_SIZE)).expect("Couldn't copy texture into window");
-        // update window's display
-        canvas.present();
+        // Draw game map
 
-        sleep(Duration::new(0, 1_000_000u32 /60));
+        sleep(Duration::new(0, 1_000_000_000u32 / 60));
+
     }
+    // 'running: loop {
+    //     for event in event_pump.poll_iter() {
+    //         match event {
+    //             Event::Quit {..} |
+    //             Event::KeyDown { keycode: Some(Keycode::Escape), .. } => {
+    //                 break 'running
+    //             },
+    //             _ => {}
+    //         }
+    //     }
+    //     canvas.set_draw_color(Color::RGB(0,0,0));
+    //     canvas.clear();
+
+    //     // rectangle switch
+    //     let display_green = match timer.elapsed() {
+    //         Ok(elapsed) => elapsed.as_secs() % 2 == 0,
+    //         Err(_) => {
+    //             true
+    //         }
+    //     };
+    //     let square_texture = if display_green {
+    //         &green_square
+    //     } else {
+    //         &blue_square
+    //     };
+    //     canvas.copy(square_texture, None, Rect::new(0,0, TEXTURE_SIZE, TEXTURE_SIZE)).expect("Couldn't copy texture into window");
+    //     // update window's display
+    //     canvas.present();
+
+    //     sleep(Duration::new(0, 1_000_000u32 /60));
+    // }
 }
 
 // TODO invoke in the main fn
@@ -478,7 +521,11 @@ fn handle_events(tetris: &mut Tetris, quit: &mut bool, timer: &mut SystemTime, e
     make_permanent
 }
 
-
+fn print_game_information(tetris: &Tetris) {
+    println!("Game over...");
+    println!("Score:           {}", tetris.score);
+    println!("Current level:   {}", tetris.current_level);
+}
 
 fn create_texture_rect<'a>(
     canvas: &mut Canvas<Window>, 
