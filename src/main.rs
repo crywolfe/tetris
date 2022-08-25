@@ -17,14 +17,19 @@ use std::thread::sleep;
 use std::time::SystemTime;
 
 const TEXTURE_SIZE: u32 = 32;
+const HIGHSCORE_FILE: &'static str = "scores.txt";
 const LEVEL_TIMES: [u32; 10] = [1000, 850, 700, 600, 500, 400, 300, 250, 221, 190];
 const LEVEL_LINES: [u32; 10] = [20,   40,  60,  80,  100, 120, 140, 160, 180, 200];
 const NB_HIGHSCORES: usize = 5;
+const TETRIS_HEIGHT: usize = 40;
 
 #[derive(Clone, Copy)]
 enum TextureColor {
     Green,
-    Blue
+    Blue,
+    Red,
+    Black,
+    White
 }
 
 type Piece = Vec<Vec<u8>>;
@@ -47,7 +52,6 @@ struct Tetris {
 
 trait TetriminoGenerator {
     fn new() -> Tetrimino;
-    
 }
 
 struct TetriminoI;
@@ -455,14 +459,19 @@ fn is_time_over(tetris: &Tetris, timer: &SystemTime) -> bool {
 pub fn main() {
     let sdl_context = sdl2::init().expect("SDL initialization failed");
     let video_subsystem = sdl_context.video().expect("Couldn't get SLD video subsystem");
+    let width = 600;
+    let height = 800;
 
     sdl2::image::init(INIT_PNG | INIT_JPG).expect("Couldn't initialize image context");
 
     let mut tetris = Tetris::new();
     let mut timer = SystemTime::now();
 
+    let grid_x = (width - TETRIS_HEIGHT as u32 * 10) as i32/2;
+    let grid_y = (height - TETRIS_HEIGHT as u32 * 16) as i32 /2;
+
     // Parameters are title, width, height
-    let window = video_subsystem.window("Tetris", 800, 600)
+    let window = video_subsystem.window("Tetris", width, height)
     .position_centered()
     .build()
     .expect("Failed to create window");
@@ -474,6 +483,8 @@ pub fn main() {
         .expect("Couldn't get window's canvas");
 
     let texture_creator: TextureCreator<_> = canvas.texture_creator();
+
+    let grid = create_texture_rect(&mut canvas, &texture_creator, 0,0,0, TETRIS_HEIGHT as u32 * 10);
 
     let green_square = create_texture_rect(&mut canvas, &texture_creator, TextureColor::Green, TEXTURE_SIZE).expect("Failed to create a texture");
     let blue_square = create_texture_rect(&mut canvas, &texture_creator, TextureColor::Blue, TEXTURE_SIZE).expect("Failed to create a texture");
