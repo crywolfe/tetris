@@ -1,6 +1,8 @@
 extern crate sdl2;
 extern crate rand;
 
+
+
 use sdl2::pixels::Color;
 use sdl2::event::Event;
 use sdl2::image::{LoadTexture, INIT_PNG, INIT_JPG};
@@ -484,12 +486,12 @@ pub fn main() {
 
     let texture_creator: TextureCreator<_> = canvas.texture_creator();
 
-    let grid = create_texture_rect(&mut canvas, &texture_creator, 0,0,0, TETRIS_HEIGHT as u32 * 10);
+    let grid = create_texture_rect(&mut canvas, &texture_creator,0, TETRIS_HEIGHT as u32 * 10);
 
     let green_square = create_texture_rect(&mut canvas, &texture_creator, TextureColor::Green, TEXTURE_SIZE).expect("Failed to create a texture");
     let blue_square = create_texture_rect(&mut canvas, &texture_creator, TextureColor::Blue, TEXTURE_SIZE).expect("Failed to create a texture");
 
-    let timer = SystemTime::now();
+    let mut timer = SystemTime::now();
 
     // get the event handler
     let mut event_pump = sdl_context.event_pump().expect("Failed to get SDL event pump");
@@ -628,6 +630,7 @@ fn create_texture_rect<'a>(
                 match color {
                     TextureColor::Green => texture.set_draw_color(Color::RGB(0, 255,0)),
                     TextureColor::Blue => texture.set_draw_color(Color::RGB(0, 0, 255)),
+                    _ => {}
                 }
                 texture.clear();
             }).expect("Failed to color a texture");
